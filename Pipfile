@@ -5,6 +5,10 @@ name = "pypi"
 
 [packages]
 yfinance = "0.1.72"
+overrides = "*"
+sklearn = "*"
+keras = "*"
+tensorflow = "*"
 
 [dev-packages]
 
