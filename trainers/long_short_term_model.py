@@ -19,7 +19,7 @@ class LongShortTermModel(Model):
     steps_size = 60
 
     @overrides()
-    async def predict(self, previous_data: list) -> list:
+    async def predict(self, model_file_name: str, previous_data: list) -> list:
         try:
             if len(previous_data) < self.steps_size:
                 raise Exception(f"Not enough data to predict. Required {self.steps_size} but got {len(previous_data)}")
@@ -33,7 +33,7 @@ class LongShortTermModel(Model):
             x_test = np.reshape(x_test, newshape=(x_test.shape[0], x_test.shape[1], 1))
 
             # Load the model
-            model = keras.models.load_model(self.model_file_name)
+            model = keras.models.load_model(model_file_name)
             prediction = model.predict(x_test)
 
             return self.scaler.inverse_transform(prediction)
@@ -96,7 +96,6 @@ class LongShortTermModel(Model):
             model.fit(x=x_train, y=y_train, batch_size=32, epochs=7)
 
             model_file_name = f'../models/lstm/{os.path.basename(csv_file_path)}.h5'
-            self.model_file_name = model_file_name
 
             model.save(model_file_name)
 
