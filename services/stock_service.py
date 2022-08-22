@@ -34,6 +34,8 @@ async def download_stock_data_by_interval(period: str, interval: str):
         stock_data: pd.DataFrame = yf.download(
             row['Symbol'], period=period, interval=interval, auto_adjust=True, threads=True)
 
+        stock_data.index.name = 'Date'
+
         file_name = f'../data/stocks/{row["Symbol"]}_{period}_{interval}.csv'
         stock_data.to_csv(file_name)
 
@@ -42,15 +44,3 @@ async def download_stock_data_by_interval(period: str, interval: str):
         logging.info(f"Downloaded {row['Symbol']} - {row['Name']}")
 
     return result_list
-
-
-async def main():
-    # Download some basic data
-    await asyncio.gather(
-        download_stock_data_by_interval(period='5y', interval='1d'),
-        download_stock_data_by_interval(period='1y', interval='60m'),
-        download_stock_data_by_interval(period='7d', interval='1m')
-    )
-
-
-# asyncio.run(main())
