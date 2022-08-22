@@ -49,135 +49,139 @@ class XGBoostModel(Model):
 
     @overrides()
     async def train(self, csv_file_path: str) -> str:
-        data = pd.read_csv(csv_file_path)
+        try:
+            data = pd.read_csv(csv_file_path)
 
-        logging.info(f'Reading from CSV')
-        logging.info(data.head())
+            logging.info(f'Reading from CSV')
+            logging.info(data.head())
 
-        data_new = data.drop(['Volume'], axis=1)
-        data_new.reset_index(inplace=True)
+            data_new = data.drop(['Volume'], axis=1)
+            data_new.reset_index(inplace=True)
 
-        logging.info(f'Add date part, calculate feature, label encode')
+            logging.info(f'Add date part, calculate feature, label encode')
 
-        add_datepart(data_new, 'Date', drop=False)
-        feature_calculator(data_new)
-        label_encode(data_new)
+            add_datepart(data_new, 'Date', drop=False)
+            feature_calculator(data_new)
+            label_encode(data_new)
 
-        logging.info('Dropping rows with NaN values')
+            logging.info('Dropping rows with NaN values')
 
-        data_new = data_new.iloc[33:]
-        data_new.reset_index(drop=True, inplace=True)
+            data_new = data_new.iloc[33:]
+            data_new.reset_index(drop=True, inplace=True)
 
-        logging.info('Dropping unused columns')
-        data_new.drop(['Year', 'High', 'Low', 'Open', 'Date', 'index'], inplace=True, axis=1)
+            logging.info('Dropping unused columns')
+            data_new.drop(['Year', 'High', 'Low', 'Open', 'Date', 'index'], inplace=True, axis=1)
 
-        logging.info(data_new.head())
+            logging.info(data_new.head())
 
-        # Shifting the features a row up
-        data_new[
-            [
-                'EMA_9',
-                'SMA_5',
-                'SMA_10',
-                'SMA_15',
-                'SMA_20',
-                'SMA_25',
-                'SMA_30',
-                'MACD',
-                'RSI',
-                'Stochastic']
-        ] = data_new[
-            [
-                'EMA_9',
-                'SMA_5',
-                'SMA_10',
-                'SMA_15',
-                'SMA_20',
-                'SMA_25',
-                'SMA_30',
-                'MACD',
-                'RSI',
-                'Stochastic']
-        ].shift(-1)
+            # Shifting the features a row up
+            data_new[
+                [
+                    'EMA_9',
+                    'SMA_5',
+                    'SMA_10',
+                    'SMA_15',
+                    'SMA_20',
+                    'SMA_25',
+                    'SMA_30',
+                    'MACD',
+                    'RSI',
+                    'Stochastic']
+            ] = data_new[
+                [
+                    'EMA_9',
+                    'SMA_5',
+                    'SMA_10',
+                    'SMA_15',
+                    'SMA_20',
+                    'SMA_25',
+                    'SMA_30',
+                    'MACD',
+                    'RSI',
+                    'Stochastic']
+            ].shift(-1)
 
-        # Splitting the dataset into 70% training, 15% validation and 15% test
-        # train test split indexes
-        test_size = 0.15
-        valid_size = 0.15
+            # Splitting the dataset into 70% training, 15% validation and 15% test
+            # train test split indexes
+            test_size = 0.15
+            valid_size = 0.15
 
-        test_split_idx = int(data_new.shape[0] * (1 - test_size))
-        valid_split_idx = int(data_new.shape[0] * (1 - (valid_size + test_size)))
+            test_split_idx = int(data_new.shape[0] * (1 - test_size))
+            valid_split_idx = int(data_new.shape[0] * (1 - (valid_size + test_size)))
 
-        # train test split tcs
+            # train test split tcs
 
-        train = data_new.loc[:valid_split_idx]
-        valid = data_new.loc[valid_split_idx + 1:test_split_idx]
-        test = data_new.loc[test_split_idx + 1:]
+            train = data_new.loc[:valid_split_idx]
+            valid = data_new.loc[valid_split_idx + 1:test_split_idx]
+            test = data_new.loc[test_split_idx + 1:]
 
-        y_train = train['Close']
-        x_train = train.drop(['Close'], 1)
+            y_train = train['Close']
+            x_train = train.drop(['Close'], 1)
 
-        logging.info(f'x_train:\n{x_train}')
-        logging.info(f'y_train:\n{y_train}')
+            logging.info(f'x_train:\n{x_train}')
+            logging.info(f'y_train:\n{y_train}')
 
-        y_valid = valid['Close']
-        x_valid = valid.drop(['Close'], 1)
+            y_valid = valid['Close']
+            x_valid = valid.drop(['Close'], 1)
 
-        y_test = test['Close']
-        x_test = test.drop(['Close'], 1)
+            y_test = test['Close']
+            x_test = test.drop(['Close'], 1)
 
-        parameters = {
-            'n_estimators': [500, 600],
-            'learning_rate': [0.1],
-            'max_depth': [8, 12, 15],
-            'gamma': [0.005, 0.01, ],
-            'random_state': [42],
-            'min_child_weight': [4, 3],
-            'subsample': [0.8, 1],
-            'colsample_bytree': [1],
-            'colsample_bylevel': [1]
-        }
-        kfold = KFold(5)
-        eval_set = [(x_train, y_train), (x_valid, y_valid)]
-        model = XGBRegressor(objective='reg:squarederror', n_jobs=-1)
-        clf = GridSearchCV(model, parameters, cv=kfold, scoring='neg_mean_absolute_error', verbose=0)
+            parameters = {
+                'n_estimators': [500, 600],
+                'learning_rate': [0.1],
+                'max_depth': [8, 12, 15],
+                'gamma': [0.005, 0.01, ],
+                'random_state': [42],
+                'min_child_weight': [4, 3],
+                'subsample': [0.8, 1],
+                'colsample_bytree': [1],
+                'colsample_bylevel': [1]
+            }
+            kfold = KFold(5)
+            eval_set = [(x_train, y_train), (x_valid, y_valid)]
+            model = XGBRegressor(objective='reg:squarederror', n_jobs=-1)
+            clf = GridSearchCV(model, parameters, cv=kfold, scoring='neg_mean_absolute_error', verbose=0)
 
-        clf.fit(x_train, y_train)
+            clf.fit(x_train, y_train)
 
-        logging.info(f'Best params: {clf.best_params_}')
-        logging.info(f'Best validation score = {clf.best_score_}')
+            logging.info(f'Best params: {clf.best_params_}')
+            logging.info(f'Best validation score = {clf.best_score_}')
 
-        model = XGBRegressor(**clf.best_params_, objective='reg:squarederror', n_jobs=-1)
-        model.fit(x_train, y_train, eval_set=eval_set, verbose=False)
-        y_pred = model.predict(x_test)
-        mae = mean_absolute_error(y_test, y_pred)
+            model = XGBRegressor(**clf.best_params_, objective='reg:squarederror', n_jobs=-1)
+            model.fit(x_train, y_train, eval_set=eval_set, verbose=False)
+            y_pred = model.predict(x_test)
+            mae = mean_absolute_error(y_test, y_pred)
 
-        logging.info(f'Mean square abs error: {mae}')
+            logging.info(f'Mean square abs error: {mae}')
 
-        # Hand-tuning the hyper-parameters
-        params = {'colsample_bylevel': 1,
-                  'colsample_bytree': 0.6,
-                  'gamma': 0.005,
-                  'learning_rate': 0.07,
-                  'max_depth': 10,
-                  'min_child_weight': 1,
-                  'n_estimators': 170,
-                  'random_state': 42,
-                  'subsample': 0.6}
-        eval_set = [(x_train, y_train), (x_valid, y_valid)]
-        xgb = XGBRegressor(**params, objective='reg:squarederror', n_jobs=-1)
-        xgb.fit(x_train, y_train, eval_set=eval_set, verbose=False)
-        y_pred = xgb.predict(x_test)
-        mae = mean_absolute_error(y_test, y_pred)
+            # Hand-tuning the hyper-parameters
+            params = {'colsample_bylevel': 1,
+                      'colsample_bytree': 0.6,
+                      'gamma': 0.005,
+                      'learning_rate': 0.07,
+                      'max_depth': 10,
+                      'min_child_weight': 1,
+                      'n_estimators': 170,
+                      'random_state': 42,
+                      'subsample': 0.6}
+            eval_set = [(x_train, y_train), (x_valid, y_valid)]
+            xgb = XGBRegressor(**params, objective='reg:squarederror', n_jobs=-1)
+            xgb.fit(x_train, y_train, eval_set=eval_set, verbose=False)
+            y_pred = xgb.predict(x_test)
+            mae = mean_absolute_error(y_test, y_pred)
 
-        logging.info(f"After tuning, mean square abs: {mae}")
+            logging.info(f"After tuning, mean square abs: {mae}")
 
-        model_file_name = f'../models/xgboost/{os.path.basename(csv_file_path)}_close.json'
-        xgb.save_model(model_file_name)
+            model_file_name = f'../models/xgboost/{os.path.basename(csv_file_path)}_close.json'
+            xgb.save_model(model_file_name)
 
-        logging.info(f"Saved model to {model_file_name}")
+            logging.info(f"Saved model to {model_file_name}")
 
-        return model_file_name
+            return model_file_name
+        except Exception as e:
+            logging.error(e)
+            raise e
 
     @overrides()
     async def predict(self, model_file_name: str, previous_data: list) -> list:
