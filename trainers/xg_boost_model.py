@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 import pandas as pd
 from fastai.tabular.core import add_datepart
@@ -60,9 +61,9 @@ class XGBoostModel(Model):
 
             logging.info(f'Add date part, calculate feature, label encode')
 
-            add_datepart(data_new, 'Date', drop=False)
+            # add_datepart(data_new, 'Date', drop=False)
+            # label_encode(data_new)
             feature_calculator(data_new)
-            label_encode(data_new)
 
             logging.info('Dropping rows with NaN values')
 
@@ -70,8 +71,8 @@ class XGBoostModel(Model):
             data_new.reset_index(drop=True, inplace=True)
 
             logging.info('Dropping unused columns')
-            data_new.drop(['Year', 'High', 'Low', 'Open', 'Date', 'index'], inplace=True, axis=1)
-
+            # data_new.drop(['Year', 'High', 'Low', 'Open', 'Date', 'index'], inplace=True, axis=1)
+            data_new.drop(['High', 'Low', 'Open', 'Date', 'index'], inplace=True, axis=1)
             logging.info(data_new.head())
 
             # Shifting the features a row up
@@ -138,18 +139,28 @@ class XGBoostModel(Model):
                 'colsample_bytree': [1],
                 'colsample_bylevel': [1]
             }
-            kfold = KFold(5)
+            kfold = KFold(3)
             eval_set = [(x_train, y_train), (x_valid, y_valid)]
-            model = XGBRegressor(objective='reg:squarederror', n_jobs=-1)
+            model = XGBRegressor(objective='reg:squarederror', n_jobs=-1, tree_method="hist")
             clf = GridSearchCV(model, parameters, cv=kfold, scoring='neg_mean_absolute_error', verbose=0)
 
+            start = time.time()
             clf.fit(x_train, y_train)
+            end = time.time()
+
+            logging.info(f'Time taken to run clf.fit(x_train, y_train): {end - start} seconds')
 
             logging.info(f'Best params: {clf.best_params_}')
             logging.info(f'Best validation score = {clf.best_score_}')
 
             model = XGBRegressor(**clf.best_params_, objective='reg:squarederror', n_jobs=-1)
+
+            start = time.time()
             model.fit(x_train, y_train, eval_set=eval_set, verbose=False)
+            end = time.time()
+
+            logging.info(f'Time taken to run model.fit(x_train, y_train, eval_set=eval_set): {end - start} seconds')
+
             y_pred = model.predict(x_test)
             mae = mean_absolute_error(y_test, y_pred)
 
