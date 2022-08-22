@@ -8,5 +8,5 @@ class Model(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    async def predict(self, previous_data: list) -> list:
+    async def predict(self, model_file_name: str, previous_data: list) -> list:
         pass

@@ -95,7 +95,7 @@ class LongShortTermModel(Model):
 
             model.fit(x=x_train, y=y_train, batch_size=32, epochs=7)
 
-            model_file_name = f'../models/lstm/{os.path.basename(csv_file_path)}.h5'
+            model_file_name = f'../models/lstm/{os.path.basename(csv_file_path)}_close.h5'
 
             model.save(model_file_name)
 
