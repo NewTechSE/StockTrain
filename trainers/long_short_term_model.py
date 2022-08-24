@@ -93,9 +93,9 @@ class LongShortTermModel(Model):
 
             logging.info(f"Fitting model")
 
-            model.fit(x=x_train, y=y_train, batch_size=32, epochs=7)
+            model.fit(x=x_train, y=y_train, batch_size=32, epochs=20)
 
-            model_file_name = f'../models/lstm/{os.path.basename(csv_file_path)}_close.h5'
+            model_file_name = f'../models/lstm/{os.path.basename(csv_file_path).split(".")[0]}_close.h5'
 
             model.save(model_file_name)
 

@@ -128,7 +128,7 @@ class SimpleRNNModel(Model):
 
             logging.info(f"Loss: {history.history['loss']}")
 
-            model_file_name = f'../models/rnn/{os.path.basename(csv_file_path)}_close.h5'
+            model_file_name = f'../models/rnn/{os.path.basename(csv_file_path).split(".")[0]}_close.h5'
 
             regressor.save(model_file_name)
 

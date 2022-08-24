@@ -184,7 +184,7 @@ class XGBoostModel(Model):
 
             logging.info(f"After tuning, mean square abs: {mae}")
 
-            model_file_name = f'../models/xgboost/{os.path.basename(csv_file_path)}_close.json'
+            model_file_name = f'../models/xgboost/{os.path.basename(csv_file_path).split(".")[0]}_close.json'
             xgb.save_model(model_file_name)
 
             logging.info(f"Saved model to {model_file_name}")
