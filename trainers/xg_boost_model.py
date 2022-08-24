@@ -2,14 +2,15 @@ import logging
 import os
 import time
 
+import numpy as np
 import pandas as pd
-from fastai.tabular.core import add_datepart
+import xgboost
 from overrides import overrides
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import KFold, GridSearchCV
 from sklearn.preprocessing import LabelEncoder
 from ta.momentum import RSIIndicator, StochasticOscillator
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor, DMatrix
 
 from trainers.model import Model
 
@@ -196,4 +197,25 @@ class XGBoostModel(Model):
 
     @overrides()
     def predict(self, model_file_name: str, previous_data: list) -> list:
-        pass
+        """
+
+        Predicts the next day's closing price of the stock
+
+        Args:
+            model_file_name: The path of the model file
+            previous_data: Should be an array of shape (n_samples, 3)
+            where n_samples is the number of samples to predict, 3 columns is ['Close', 'High', 'Low']
+
+        Returns: A list of closing price of the stock
+
+        """
+        model = xgboost.Booster()
+        model.load_model(model_file_name)
+
+        previous_data = np.reshape(previous_data, (len(previous_data), 3))
+        previous_data = pd.DataFrame(previous_data, columns=['Close', 'High', 'Low'])
+        feature_calculator(previous_data)
+
+        previous_data.drop(['Close', 'High', 'Low'], inplace=True, axis=1)
+
+        return model.predict(DMatrix(previous_data))

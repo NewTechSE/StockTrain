@@ -33,9 +33,9 @@ async def main():
 # asyncio.run(main())
 
 stock_data = yf.download('GOOGL', interval='60m', period='1mo')
-close_prices = stock_data['Close'].values[-61:]
+close_prices = stock_data[['Close', 'High', 'Low']].values[-1:]
 
-model = SimpleRNNModel()
-predict = model.predict("../models/rnn/GOOGL_1y_60m.csv_close.h5", close_prices)
+model = XGBoostModel()
+predict = model.predict("../models/xgboost/GOOGL_1y_60m.csv_close.json", close_prices)
 
 logging.info(f"Predict: {predict}")
