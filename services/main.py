@@ -11,5 +11,4 @@ async def main():
         download_stock_data_by_interval(period='7d', interval='1m')
     )
 
-
-asyncio.run(main())
+# asyncio.run(main())

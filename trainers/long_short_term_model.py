@@ -19,11 +19,22 @@ class LongShortTermModel(Model):
     steps_size = 60
 
     @overrides()
-    async def predict(self, model_file_name: str, previous_data: list) -> list:
-        try:
-            if len(previous_data) < self.steps_size:
-                raise Exception(f"Not enough data to predict. Required {self.steps_size} but got {len(previous_data)}")
+    def predict(self, model_file_name: str, previous_data: list) -> list:
+        """
 
+        Args:
+            model_file_name: Path to model file
+            previous_data: Should be a list of shape (n_samples, 1) or (n_samples,) where n_samples > 60
+
+        Returns: Predict values
+
+        """
+        try:
+            if len(previous_data) <= self.steps_size:
+                raise Exception(f"Not enough data to predict. Required {len(previous_data)} > {self.steps_size}")
+
+            previous_data = np.reshape(previous_data, newshape=((len(previous_data)), 1))
+            previous_data = self.scaler.fit_transform(previous_data)
             x_test = []
             for i in range(self.steps_size, len(previous_data)):
                 x_test.append(previous_data[i - self.steps_size: i, 0])
@@ -35,8 +46,9 @@ class LongShortTermModel(Model):
             # Load the model
             model = keras.models.load_model(model_file_name)
             prediction = model.predict(x_test)
+            prediction = self.scaler.inverse_transform(prediction)
 
-            return self.scaler.inverse_transform(prediction)
+            return prediction.flatten().tolist()
         except Exception as e:
             logging.error(e)
             raise e

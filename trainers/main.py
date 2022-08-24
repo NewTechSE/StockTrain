@@ -2,9 +2,13 @@ import asyncio
 import logging
 import os
 
+import numpy as np
+
 from trainers.long_short_term_model import LongShortTermModel
 from trainers.simple_rnn_model import SimpleRNNModel
 from trainers.xg_boost_model import XGBoostModel
+
+import yfinance as yf
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,4 +30,12 @@ async def main():
     await asyncio.gather(*tasks)
 
 
-asyncio.run(main())
+# asyncio.run(main())
+
+stock_data = yf.download('GOOGL', interval='60m', period='1mo')
+close_prices = stock_data['Close'].values[-61:]
+
+model = SimpleRNNModel()
+predict = model.predict("../models/rnn/GOOGL_1y_60m.csv_close.h5", close_prices)
+
+logging.info(f"Predict: {predict}")

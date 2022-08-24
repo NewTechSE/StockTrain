@@ -6,16 +6,13 @@ import pandas as pd
 from keras import Sequential
 from keras.layers import SimpleRNN, Dropout, Dense
 from overrides import overrides
-from sklearn.preprocessing import MinMaxScaler
 
-from trainers.model import Model
+from trainers.long_short_term_model import LongShortTermModel
 
 logging.basicConfig(level=logging.INFO)
 
 
-class SimpleRNNModel(Model):
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    steps_size = 60
+class SimpleRNNModel(LongShortTermModel):
 
     @overrides()
     async def train(self, csv_file_path: str) -> str:
@@ -138,7 +135,3 @@ class SimpleRNNModel(Model):
         except Exception as e:
             logging.error(e)
             raise e
-
-    @overrides()
-    async def predict(self, model_file_name: str, previous_data: list) -> list:
-        pass

@@ -195,5 +195,5 @@ class XGBoostModel(Model):
             raise e
 
     @overrides()
-    async def predict(self, model_file_name: str, previous_data: list) -> list:
+    def predict(self, model_file_name: str, previous_data: list) -> list:
         pass
