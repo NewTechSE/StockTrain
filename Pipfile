@@ -12,6 +12,7 @@ tensorflow = "*"
 fastai = "*"
 ta = "*"
 xgboost = "*"
+joblib = "*"
 
 [dev-packages]
 

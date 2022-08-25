@@ -204,7 +204,7 @@ class XGBoostModel(Model):
         Args:
             model_file_name: The path of the model file
             previous_data: Should be an array of shape (n_samples, 3)
-            where n_samples is the number of samples to predict, 3 columns is ['Close', 'High', 'Low']
+                where n_samples is the number of samples to predict, 3 columns is ['Close', 'High', 'Low']
 
         Returns: A list of closing price of the stock
 
