@@ -107,4 +107,4 @@ def handle_root_exception(error: Exception):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
