@@ -23,12 +23,12 @@ def read_stock_company_data(file_path: str):
     return data[['Symbol', 'Name']]
 
 
-async def download_stock_data_by_interval(period: str, interval: str):
+async def download_stock_data_by_interval(period: str, interval: str, list_csv="../data/company_list.csv"):
     """
     Downloads stock data of all company from yfinance by interval. Save to data/stocks folder
     """
 
-    company_data = read_stock_company_data('../data/company_list.csv')
+    company_data = read_stock_company_data(list_csv)
     result_list = []
     for index, row in company_data.iterrows():
         stock_data: pd.DataFrame = yf.download(

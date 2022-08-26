@@ -13,6 +13,9 @@ fastai = "*"
 ta = "*"
 xgboost = "*"
 joblib = "*"
+flask = "*"
+flask-restx = "*"
+werkzeug = "==2.1.2"
 
 [dev-packages]
 

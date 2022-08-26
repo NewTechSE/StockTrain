@@ -218,4 +218,4 @@ class XGBoostModel(Model):
 
         previous_data.drop(['Close', 'High', 'Low'], inplace=True, axis=1)
 
-        return model.predict(DMatrix(previous_data))
+        return model.predict(DMatrix(previous_data)).tolist()
