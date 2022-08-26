@@ -1,5 +1,6 @@
 import asyncio
 import os.path
+import subprocess
 
 import numpy as np
 import yfinance
@@ -8,10 +9,11 @@ from flask_restx import Resource, Api, reqparse, abort
 from flask_restx._http import HTTPStatus
 from flask_restx.reqparse import ParseResult
 
+from services.train_service import train_parallel
 from trainers.long_short_term_model import LongShortTermModel
 from trainers.simple_rnn_model import SimpleRNNModel
 from trainers.xg_boost_model import XGBoostModel
-from services.stock_service import download_stock_data_by_interval
+from services.stock_service import download_stock_data_by_interval, download_parallel
 
 app = Flask(__name__)
 api = Api(app, prefix='/api')
@@ -48,6 +50,13 @@ class StockTrainResource(Resource):
         return {
             'predictions': predictions
         }
+
+    # def put(self):
+    #     download_parallel(list_csv='./data/company_list.csv', download_dir='./data/stocks')
+    #
+    #     return {
+    #         "message": "Models are training..."
+    #     }
 
     def get_model_file(self, params: ParseResult):
         method = params['method'].lower()
