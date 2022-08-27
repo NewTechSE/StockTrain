@@ -1,4 +1,5 @@
 import asyncio
+from distutils.log import debug
 import os.path
 import subprocess
 
@@ -14,6 +15,7 @@ from trainers.long_short_term_model import LongShortTermModel
 from trainers.simple_rnn_model import SimpleRNNModel
 from trainers.xg_boost_model import XGBoostModel
 from services.stock_service import download_stock_data_by_interval, download_parallel
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 api = Api(app, prefix='/api')
@@ -31,7 +33,7 @@ class StockTrainResource(Resource):
     lstm = LongShortTermModel()
     rnn = SimpleRNNModel()
     xgb = XGBoostModel()
-
+    
     @api.expect(parser)
     def post(self):
         params = parser.parse_args()
@@ -47,8 +49,14 @@ class StockTrainResource(Resource):
             predictions = self.rnn.predict(model_file, inputs)
         else:
             predictions = self.xgb.predict(model_file, inputs)
+        
+        data = []
+
+        for i in range(1,len(predictions)): 
+            td = self.timedelta_from_interval(params['interval'].lower(), i)
+            data.append({'value': predictions[i], 'time':str(datetime.now() + td)})
         return {
-            'predictions': predictions
+            'data': data
         }
 
     # def put(self):
@@ -57,6 +65,15 @@ class StockTrainResource(Resource):
     #     return {
     #         "message": "Models are training..."
     #     }
+    
+    def timedelta_from_interval(self, interval: str, i):
+        td = timedelta(minutes=i)
+        match interval:
+            case '60m':
+                td = timedelta(hours=i)
+            case '1d':
+                td =timedelta(days=i)
+        return td
 
     def get_model_file(self, params: ParseResult):
         method = params['method'].lower()
@@ -107,4 +124,4 @@ def handle_root_exception(error: Exception):
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

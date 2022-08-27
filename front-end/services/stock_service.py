@@ -7,9 +7,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from utils import get_period_from_interval
 
 
-@st.cache
 def schedule_download_stock(stockSymbol: str, interval: str, df: pd.DataFrame):
-    seconds = 60
+    seconds = 2
     if interval == '60m':
         seconds = 60 * 60
     elif interval == '1d':
@@ -18,14 +17,14 @@ def schedule_download_stock(stockSymbol: str, interval: str, df: pd.DataFrame):
     scheduler = BackgroundScheduler()
 
     scheduler.add_job(
-        lambda: _download_stock(stockSymbol, interval, df), 'interval', seconds=seconds)
+        lambda: download_stock(stockSymbol, interval, df), 'interval', seconds=seconds)
 
     scheduler.start()
 
     return scheduler
 
 
-def _download_stock(stockSymbol: str, interval: str, df: pd.DataFrame):
+def download_stock(stockSymbol: str, interval: str, df: pd.DataFrame):
     print(f"Downloading {stockSymbol} - {interval}")
     df = yf.download(stockSymbol, period=get_period_from_interval(
         interval), interval=interval)
