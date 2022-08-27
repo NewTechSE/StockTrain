@@ -4,8 +4,9 @@ import os.path
 import subprocess
 
 import numpy as np
+import pandas as pd
 import yfinance
-from flask import Flask, jsonify
+from flask import Flask, jsonify, Response
 from flask_restx import Resource, Api, reqparse, abort
 from flask_restx._http import HTTPStatus
 from flask_restx.reqparse import ParseResult
@@ -14,8 +15,8 @@ from services.train_service import train_parallel
 from trainers.long_short_term_model import LongShortTermModel
 from trainers.simple_rnn_model import SimpleRNNModel
 from trainers.xg_boost_model import XGBoostModel
-from services.stock_service import download_stock_data_by_interval, download_parallel
-from datetime import datetime, timedelta
+from services.stock_service import download_stock_data_by_interval, download_parallel, read_stock_company_data, format_data
+from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 api = Api(app, prefix='/api')
@@ -33,6 +34,37 @@ class StockTrainResource(Resource):
     lstm = LongShortTermModel()
     rnn = SimpleRNNModel()
     xgb = XGBoostModel()
+    
+    def __init__(self, api=None, *args, **kwargs):
+        super().__init__(api, *args, **kwargs)
+        
+        self.stock_data = {}
+        
+        list_csv='./data/company_list.csv'
+        # download_parallel(list_csv=list_csv, download_dir='./data/stocks')
+        company_data = read_stock_company_data(list_csv)
+ 
+        stock_args = [
+            ('5y', '1d'),
+            ('1y', '60m'),
+            ('7d', '1m')
+        ]
+
+        for index, company in company_data.iterrows():
+            for (period, interval) in stock_args:
+                file_name = f'./data/stocks/{company["Symbol"]}_{period}_{interval}.csv'
+                df = format_data(pd.read_csv(file_name))
+                self.stock_data[f'{company["Symbol"]}_{period}_{interval}'] = df
+
+    @api.expect(parser)
+    def get(self):
+        params = parser.parse_args()
+        stock_data = self.get_stock_data(params)
+        
+        return Response(
+            stock_data.to_json(orient="records"),
+            mimetype='application/json',
+        )
     
     @api.expect(parser)
     def post(self):
@@ -92,11 +124,8 @@ class StockTrainResource(Resource):
 
     def prepare_input(self, params: ParseResult):
         method = params['method'].lower()
-        symbol = params['symbol'].upper()
-        interval = params['interval'].lower()
-        period = self.get_proper_period(interval)
 
-        stock_data = yfinance.download(symbol, interval=interval, period=period)
+        stock_data = self.get_stock_data(params)
 
         if method == 'lstm' or method == 'rnn':
             inputs = stock_data['Close'].values[-70:]
@@ -105,14 +134,23 @@ class StockTrainResource(Resource):
         else:
             inputs = stock_data[['Close', 'High', 'Low']][-10:]
             return inputs
+        
+    def get_stock_data(self, params: ParseResult):
+        symbol = params['symbol'].upper()
+        interval = params['interval'].lower()
+        period = self.get_proper_period(interval)
+
+        stock_data = self.stock_data[f'{symbol}_{period}_{interval}']
+        
+        return stock_data[stock_data['Date'] < datetime.now(timezone.utc)][-1000:]
 
     def get_proper_period(self, interval: str):
         if interval == '1m':
-            return '1d'
+            return '7d'
         elif interval == '60m':
-            return '1mo'
+            return '1y'
         else:
-            return '6mo'
+            return '5y'
 
 
 @api.errorhandler(Exception)
