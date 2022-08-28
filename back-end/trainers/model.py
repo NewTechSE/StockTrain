@@ -2,6 +2,7 @@ import abc
 
 
 class Model(metaclass=abc.ABCMeta):
+    name = 'model'
 
     @abc.abstractmethod
     async def train(self, csv_file_path: str) -> str:

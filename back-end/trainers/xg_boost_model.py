@@ -48,6 +48,7 @@ def feature_calculator(share: pd.DataFrame):
 
 
 class XGBoostModel(Model):
+    name = 'xgboost'
 
     @overrides()
     async def train(self, csv_file_path: str) -> str:
