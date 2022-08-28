@@ -61,21 +61,3 @@ def predict_parallel(trained_model: Model, n_threads: int):
     Parallel(n_jobs=n_threads)(delayed(predict_job)(csv_file)
                                for csv_file in csv_files)
 
-
-def prepare_input(method: str, stock_data: pd.DataFrame):
-    if method == 'lstm' or method == 'rnn':
-        inputs = stock_data['Close'].values[-70:]
-        inputs = np.reshape(inputs, (-1, 1))
-        return inputs
-    else:
-        inputs = stock_data[['Close', 'High', 'Low']][-10:]
-        return inputs
-
-
-def get_timedelta_by_interval(interval: str):
-    if interval == '1m':
-        return timedelta(minutes=1)
-    elif interval == '60m':
-        return timedelta(minutes=60)
-    else:
-        return timedelta(days=1)

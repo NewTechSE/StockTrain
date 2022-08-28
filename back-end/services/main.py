@@ -10,8 +10,8 @@ if __name__ == '__main__':
     xgb = XGBoostModel()
     
     predict_parallel(lstm, 4)
-    # predict_parallel(rnn, 4)
-    # predict_parallel(xgb, 4)
+    predict_parallel(rnn, 4)
+    predict_parallel(xgb, 4)
 
     # download_parallel()
     pass
