@@ -11,6 +11,8 @@ pandas = "*"
 yfinance = "*"
 plotly = "*"
 apscheduler = "*"
+tzdata = "*"
+sklearn = "*"
 
 [dev-packages]
 

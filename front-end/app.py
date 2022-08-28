@@ -10,14 +10,16 @@ import requests
 from services.stock_service import schedule_download_stock
 from apscheduler.schedulers.background import BackgroundScheduler
 from configs import HOST_API
-
+import sklearn.metrics  
 from datetime import datetime
+import pytz
+import math
 
 pd.options.mode.chained_assignment = None
 
 scheduler = BackgroundScheduler()
 
-st.title("Stock Prediction!")
+st.title("Trading Dashboard Pro")
 with st.sidebar:
     modelType = st.selectbox(
         "Model",  ["LSTM", "RNN", "XGBoost"],
@@ -30,76 +32,87 @@ with st.sidebar:
     timeFrame = st.selectbox(
         "Time Frame",  ["1m", "60m", "1d"]
     )
+    field = st.selectbox(
+        "Prediction", [ "Price of change (n=15)", "Price of change (n=30)", "Close",]
+    ) 
     nCandles = st.select_slider(
-        "Number Candles", options=list(range(60, 1000)))
+        "Number Candles", options=list(range(60, 1001)))
 
 # print(datetime.fromtimestamp(1661503620))
 
 placeholder = st.empty()
 
-response = requests.get(
-        f"{HOST_API}/stock-train?method={modelType}&symbol={stockSymbol}&interval={timeFrame}")
-data = pd.DataFrame(response.json())[-nCandles:]
-data['Date'] = data['Date'].apply(lambda d: datetime.fromtimestamp(float(d)).isoformat())
-# data.set_index(data['Date'], inplace=True)
-df = data
-
-response = requests.post(
-                f"{HOST_API}/stock-train?method={modelType}&symbol={stockSymbol}&interval={timeFrame}")
-data = pd.DataFrame(response.json())[-nCandles-10:]
-data['Date'] = data['Date'].apply(lambda d: datetime.fromtimestamp(float(d)).isoformat())
-# data.set_index(data['Date'], inplace=True)
-pre_df = data
+df = None
+pre_df = None
 
 def fetch_data():
-    global df
-    global pre_df
+    global df, pre_df
     response = requests.get(
         f"{HOST_API}/stock-train?method={modelType}&symbol={stockSymbol}&interval={timeFrame}")
-    data = pd.DataFrame(response.json())[-nCandles:]
-    data['Date'] = data['Date'].apply(lambda d: datetime.fromtimestamp(float(d/1000)))
-    data.set_index(data['Date'], inplace=True)
+    data = pd.DataFrame(response.json())
+    data = data[-nCandles:]
+    data['Date'] = data['Date'].apply(lambda d: datetime.fromtimestamp(float(d), tz=pytz.timezone('Asia/Bangkok')).isoformat())
+    # data.set_index(data['Date'], inplace=True)
     df = data
-    
-    response = requests.post(
-                f"{HOST_API}/stock-train?method={modelType}&symbol={stockSymbol}&interval={timeFrame}")
-    data = pd.DataFrame(response.json())[-nCandles:]
-    data.set_index(data['Date'], inplace=True)
-    pre_df = data
 
+    response = requests.post(
+                    f"{HOST_API}/stock-train?method={modelType}&symbol={stockSymbol}&interval={timeFrame}")
+    data = pd.DataFrame(response.json())
+    data = data[-nCandles-10:]
+    data['Date'] = data['Date'].apply(lambda d: datetime.fromtimestamp(float(d), tz=pytz.timezone('Asia/Bangkok')).isoformat())
+    # data.set_index(data['Date'], inplace=True)
+    pre_df = data 
+
+fetch_data()
 try:
     scheduler.add_job(fetch_data, 'interval', seconds=60)
     scheduler.start()
     
     if nCandles:
         while True:
-            # df = fetch_data()
-            
-            # print(df.tail())
             with placeholder.container():
-                kpi1, kpi2, kpi3 = st.columns(3)
+                kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
 
-        # fill in those three columns with respective metrics or KPIs
                 kpi1.metric(
                     label="Time ⏳",
-                    value=datetime.now().isoformat(),
+                    value=datetime.now(tz=pytz.timezone('Asia/Bangkok')).strftime("%H:%M:%S"),
                 )
                 
-                # kpi2.metric(
-                #     label="Married Count 💍",
-                #     value=int(count_married),
-                #     delta=-10 + count_married,
-                # )
-                
-                # kpi3.metric(
-                #     label="A/C Balance ＄",
-                #     value=f"$ {round(balance,2)} ",
-                #     delta=-round(balance / count_married) * 100,
-                # )
 
-                chart = st.line_chart(df.Close)
+                cur = df['Open'].loc[df.index[-1]]
+                prev = df['Open'].loc[df.index[-2]]
+                kpi2.metric(
+                    label="Open ＄",
+                    value=f"$ {round(cur, 4)} ",
+                    delta=round(-prev + cur,9)
+                )
 
-                
+                cur = df['Close'].loc[df.index[-1]]
+                prev = df['Close'].loc[df.index[-2]]
+                kpi3.metric(
+                    label="Close ＄",
+                    value=f"$ {round(cur, 4)} ",
+                    delta=round(-prev + cur,9)
+                )
+
+                cur = df['High'].loc[df.index[-1]]
+                prev = df['High'].loc[df.index[-2]]
+                kpi4.metric(
+                    label="High ＄",
+                    value=f"$ {round(cur, 4)} ",
+                    delta=round(-prev + cur,9)
+                )
+
+                cur = df['Low'].loc[df.index[-1]]
+                prev = df['Low'].loc[df.index[-2]]
+                kpi5.metric(
+                    label="Low ＄",
+                    value=f"$ {round(cur, 4)} ",
+                    delta=round(-prev + cur,9)
+                )
+
+
+
                 fig_col1, _ = st.columns(2)
                 with fig_col1:
                     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
@@ -140,37 +153,53 @@ try:
                                     width=1200,
                                     height=600)
 
-                    # chart = st.plotly_chart(fig)
                     st.write(fig)
 
-            # scheduler.add_job(fetch_Data, 'interval', seconds=2)
+                rmse = 0
+                st.title(field)
+                kpi1, kpi2 = st.columns(2) 
+                if field == "Close":
+                    chart = st.line_chart(pd.concat([df.Close, pre_df.Prediction[:len(df.Close)]], join='outer', axis=1))
 
-            
+                    mse = sklearn.metrics.mean_squared_error(df.Close, pre_df.Prediction[:len(df)])  
+                    rmse = math.sqrt(mse)  
 
-            # df.reset_index(inplace=True, drop=True)
 
-            # for p in predictions[0:1]:
-            #     dfTemp = pd.DataFrame({
-            #         'Datetime': [p['time']+'-4:00'],
-            #         'Close': [p['value']],
-            #         'Open': [df['Close'][-1:]],
-            #         'High': [p['value']],
-            #         'Low': [p['value']],
-            #     })
-            #     df = pd.concat([df, dfTemp])
-            #     chart.add_rows(dfTemp)
+                    kpi1.metric(
+                        label="RSME",
+                        value=round(rmse, 9)
+                    )
 
-            # scheduler.start()
-            # print('load')
-            # td = 60
-            # match timeFrame:
-            #     case '60m':
-            #         td = 3600
-            #     case '1d':
-            #         td = 3600*24
+                else:
+                    n = 30
+                    if field == "Price of change (n=15)":
+                        n = 15
+                    poc = df["Close"]- df["Close"].shift(n) 
+                    pre_poc = pre_df[:len(df)]["Prediction"] - pre_df[:len(df)]["Prediction"].shift(n)
 
+                    diff = pd.concat([poc, pre_poc], join='outer', axis=1)
+                    diff['Date'] = df['Date']
+                    diff.set_index('Date', inplace=True)
+                    
+                    
+
+                    rsme_df = diff
+                    rsme_df.dropna(inplace=True)
+
+                    mse = sklearn.metrics.mean_squared_error(rsme_df.Close, rsme_df.Prediction)  
+                    rmse = math.sqrt(mse)  
+
+                    kpi1.metric(
+                        label="RSME",
+                        value=round(rmse, 9)
+                    )
+
+                    chart = st.line_chart(diff)
+
+                st.title("Data Table")        
+                st.dataframe(df.dropna())
             time.sleep(1)
-
+       
 except (KeyboardInterrupt, SystemExit):
     # Not strictly necessary if daemonic mode is enabled but should be done if possible
     scheduler.shutdown()

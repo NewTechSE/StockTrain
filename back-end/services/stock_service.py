@@ -70,5 +70,5 @@ def download_parallel(list_csv="../data/company_list.csv", download_dir="../data
 
 
 def format_data(df):
-    df['Date'] = df['Date'].apply(lambda e: (datetime.fromisoformat((e)) + timedelta(days=3) - timedelta(hours=5)).timestamp())
+    df['Date'] = df['Date'].apply(lambda e: (datetime.fromisoformat((e)) + timedelta(days=3) - timedelta(hours=3)).timestamp())
     return df
