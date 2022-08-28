@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class SimpleRNNModel(LongShortTermModel):
+    name = 'rnn'
 
     @overrides()
     async def train(self, csv_file_path: str) -> str:

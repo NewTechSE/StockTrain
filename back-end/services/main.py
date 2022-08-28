@@ -1,14 +1,17 @@
-import asyncio
+from services.stock_service import download_parallel
+from services.train_service import predict_parallel
+from trainers.long_short_term_model import LongShortTermModel
+from trainers.simple_rnn_model import SimpleRNNModel
+from trainers.xg_boost_model import XGBoostModel
 
-from services.stock_service import download_stock_data_by_interval
+if __name__ == '__main__':
+    lstm = LongShortTermModel()
+    rnn = SimpleRNNModel()
+    xgb = XGBoostModel()
+    
+    predict_parallel(lstm, 4)
+    predict_parallel(rnn, 4)
+    predict_parallel(xgb, 4)
 
-
-async def main():
-    # Download some basic data
-    await asyncio.gather(
-        download_stock_data_by_interval(period='5y', interval='1d'),
-        download_stock_data_by_interval(period='1y', interval='60m'),
-        download_stock_data_by_interval(period='7d', interval='1m')
-    )
-
-# asyncio.run(main())
+    # download_parallel()
+    pass

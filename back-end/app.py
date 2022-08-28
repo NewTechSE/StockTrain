@@ -1,30 +1,48 @@
-import asyncio
-from distutils.log import debug
 import os.path
-import subprocess
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
-import yfinance
-from flask import Flask, jsonify
+import pandas as pd
+from flask import Flask, Response
 from flask_restx import Resource, Api, reqparse, abort
 from flask_restx._http import HTTPStatus
 from flask_restx.reqparse import ParseResult
 
-from services.train_service import train_parallel
+from services.stock_service import read_stock_company_data, \
+    format_data
 from trainers.long_short_term_model import LongShortTermModel
 from trainers.simple_rnn_model import SimpleRNNModel
 from trainers.xg_boost_model import XGBoostModel
-from services.stock_service import download_stock_data_by_interval, download_parallel
-from datetime import datetime, timedelta
+from utils.api_util import create_basic_request_parser
+from namespaces.prediction_history import api as prediction_history_ns
 
 app = Flask(__name__)
 api = Api(app, prefix='/api')
 
-parser = reqparse.RequestParser()
+api.add_namespace(prediction_history_ns)
 
-parser.add_argument('method', type=str, location='args', required=True, trim=True, help='lstm | rnn | xgboost')
-parser.add_argument('symbol', type=str, location='args', required=True, trim=True, help='adbe | googl | msft')
-parser.add_argument('interval', type=str, location='args', required=True, trim=True, help='1m | 60m | 1d')
+parser = create_basic_request_parser()
+
+list_csv = './data/company_list.csv'
+# download_parallel(list_csv=list_csv, download_dir='./data/stocks')
+company_data = read_stock_company_data(list_csv)
+
+stock_args = [
+    ('5y', '1d'),
+    ('1y', '60m'),
+    ('7d', '1m')
+]
+stock_data = {}
+lstm = LongShortTermModel()
+rnn = SimpleRNNModel()
+xgb = XGBoostModel()
+
+for index, company in company_data.iterrows():
+    for (period, interval) in stock_args:
+        for method in ['lstm', 'rnn', 'xgboost']:
+            file_name = f'./data/predictions/{method}/{company["Symbol"]}_{period}_{interval}_close.csv'
+            df = format_data(pd.read_csv(file_name))
+            stock_data[f'{company["Symbol"]}_{method}_{period}_{interval}'] = df
 
 
 # noinspection PyMethodMayBeStatic
@@ -33,7 +51,23 @@ class StockTrainResource(Resource):
     lstm = LongShortTermModel()
     rnn = SimpleRNNModel()
     xgb = XGBoostModel()
-    
+
+    def __init__(self, api=None, *args, **kwargs):
+        super().__init__(api, *args, **kwargs)
+        global stock_data
+        self.stock_data = stock_data
+
+    @api.expect(parser)
+    def get(self):
+        params = parser.parse_args()
+
+        stock_data = self.get_stock_data(params)
+
+        return Response(
+            stock_data[['Date', 'Open', 'Close', 'Low', 'High']].to_json(orient="records"),
+            mimetype='application/json',
+        )
+
     @api.expect(parser)
     def post(self):
         params = parser.parse_args()
@@ -49,30 +83,24 @@ class StockTrainResource(Resource):
             predictions = self.rnn.predict(model_file, inputs)
         else:
             predictions = self.xgb.predict(model_file, inputs)
-        
+
         data = []
 
-        for i in range(1,len(predictions)): 
+        for i in range(1, len(predictions)):
             td = self.timedelta_from_interval(params['interval'].lower(), i)
-            data.append({'value': predictions[i], 'time':str(datetime.now() + td)})
+            data.append(
+                {'Close': predictions[i], 'Date': str(datetime.now() + td)})
         return {
             'data': data
         }
 
-    # def put(self):
-    #     download_parallel(list_csv='./data/company_list.csv', download_dir='./data/stocks')
-    #
-    #     return {
-    #         "message": "Models are training..."
-    #     }
-    
     def timedelta_from_interval(self, interval: str, i):
         td = timedelta(minutes=i)
         match interval:
             case '60m':
                 td = timedelta(hours=i)
             case '1d':
-                td =timedelta(days=i)
+                td = timedelta(days=i)
         return td
 
     def get_model_file(self, params: ParseResult):
@@ -92,11 +120,8 @@ class StockTrainResource(Resource):
 
     def prepare_input(self, params: ParseResult):
         method = params['method'].lower()
-        symbol = params['symbol'].upper()
-        interval = params['interval'].lower()
-        period = self.get_proper_period(interval)
 
-        stock_data = yfinance.download(symbol, interval=interval, period=period)
+        stock_data = self.get_stock_data(params)
 
         if method == 'lstm' or method == 'rnn':
             inputs = stock_data['Close'].values[-70:]
@@ -106,13 +131,39 @@ class StockTrainResource(Resource):
             inputs = stock_data[['Close', 'High', 'Low']][-10:]
             return inputs
 
+    @api.expect(parser)
+    def post(self):
+        params = parser.parse_args()
+        return Response(
+            self.get_data(params).to_json(orient="records"),
+            mimetype='application/json',
+        )
+
+    def get_stock_data(self, params: ParseResult) -> pd.DataFrame:
+        symbol = params['symbol'].upper()
+        interval = params['interval'].lower()
+        period = self.get_proper_period(interval)
+        method = params['method'].lower()
+        stock_data = self.stock_data[f'{symbol}_{method}_{period}_{interval}']
+        return stock_data[stock_data['Date'] < datetime.now(timezone.utc).timestamp()][-1000:]
+
+    def get_data(self, params: ParseResult) -> pd.DataFrame:
+        symbol = params['symbol'].upper()
+        interval = params['interval'].lower()
+        period = self.get_proper_period(interval)
+        method = params['method'].lower()
+        stock_data = self.stock_data[f'{symbol}_{method}_{period}_{interval}']
+        data = stock_data[stock_data['Date'] > datetime.now(timezone.utc).timestamp()][0:10]
+        return pd.concat([stock_data[stock_data['Date'] < datetime.now(timezone.utc).timestamp()][-1000:], data])[
+            ['Date', 'Prediction']]
+
     def get_proper_period(self, interval: str):
         if interval == '1m':
-            return '1d'
+            return '7d'
         elif interval == '60m':
-            return '1mo'
+            return '1y'
         else:
-            return '6mo'
+            return '5y'
 
 
 @api.errorhandler(Exception)

@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class LongShortTermModel(Model):
+    name = 'lstm'
     scaler = MinMaxScaler(feature_range=(0, 1))
     steps_size = 60
 
