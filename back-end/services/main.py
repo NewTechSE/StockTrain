@@ -5,13 +5,13 @@ from trainers.simple_rnn_model import SimpleRNNModel
 from trainers.xg_boost_model import XGBoostModel
 
 if __name__ == '__main__':
+    download_parallel()
+
     lstm = LongShortTermModel()
     rnn = SimpleRNNModel()
     xgb = XGBoostModel()
-    
+
     predict_parallel(lstm, 4)
     predict_parallel(rnn, 4)
     predict_parallel(xgb, 4)
-
-    # download_parallel()
     pass

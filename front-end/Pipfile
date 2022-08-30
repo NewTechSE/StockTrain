@@ -13,6 +13,7 @@ plotly = "*"
 apscheduler = "*"
 tzdata = "*"
 sklearn = "*"
+colorama = "*"
 
 [dev-packages]
 

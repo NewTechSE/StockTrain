@@ -12,6 +12,6 @@ if __name__ == '__main__':
     rnn = SimpleRNNModel()
     xg = XGBoostModel()
 
-    train_parallel(model=lstm, n_threads=3)
-    train_parallel(model=rnn, n_threads=3)
-    train_parallel(model=xg, n_threads=3)
+    train_parallel(lstm, n_threads=3)
+    train_parallel(rnn, n_threads=3)
+    train_parallel(xg, n_threads=3)
